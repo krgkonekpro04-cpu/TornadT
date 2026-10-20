@@ -31,6 +31,7 @@ function Choice<K extends keyof Settings>({ k, label, options, value, onChange }
 const SOURCES = [
   ["Historical tornadoes", "NOAA SPC actual tracks, 1950–2025, plus a daily-checked NOAA NCEI 2026 Storm Events archive", "https://www.spc.noaa.gov/wcm/#data"],
   ["Current-year tornadoes", "NOAA NCEI Storm Events details archive; current-year records can be incomplete or revised", "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/"],
+  ["Canada tornadoes", "Northern Tornadoes Project public event summaries; live records from 2017 onward, no API key required", "https://www.uwo.ca/ntp/"],
   ["Weather & forecasts", "Open-Meteo forecast and geocoding APIs (free, no key, CC BY 4.0)", "https://open-meteo.com/en/docs"],
   ["Radar", "RainViewer public weather maps API — observed radar frames", "https://www.rainviewer.com/api.html"],
   ["Severe alerts", "U.S. National Weather Service API (api.weather.gov)", "https://www.weather.gov/documentation/services-web-api"],

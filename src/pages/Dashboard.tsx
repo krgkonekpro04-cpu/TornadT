@@ -70,6 +70,9 @@ export default function Dashboard() {
   const japanRecords = useMemo(() => (records.data ?? []).filter((t) => t.country === "Japan"), [records.data]);
   const japanStats = useStats({ country: "Japan" });
   const japanRecent = useTornadoPage({ country: "Japan", sort: "date", order: "desc", page_size: "3" });
+  const canadaRecords = useMemo(() => (records.data ?? []).filter((t) => t.country === "Canada"), [records.data]);
+  const canadaStats = useStats({ country: "Canada" });
+  const canadaRecent = useTornadoPage({ country: "Canada", sort: "date", order: "desc", page_size: "3" });
   const stats = useStats({ country: "United States" });
   const alerts = useAlerts("active");
   const activeWarnings = alerts.data?.items.filter((a) => a.is_active && /warning/i.test(a.event)).length ?? 0;
@@ -177,6 +180,19 @@ export default function Dashboard() {
             {japanRecent.data?.items.map((t) => <TornadoListItem key={t.id} t={t} testId={`dashboard-japan-event-${t.id}`} />)}
           </div>
           {!records.isLoading && <p className="mt-1 text-[10px] text-tt-muted">{fmtInt(japanRecords.length)} records loaded from the bundled JMA dataset.</p>}
+        </Panel>
+        <Panel testId="dashboard-canada-records" className="col-span-12 md:col-span-6 lg:col-span-3" title="Canada tornado record · NTP" action={<Link to="/database?country=Canada" className="text-xs text-tt-lilac hover:underline">Open Canada records</Link>}>
+          {canadaStats.data ? (
+            <div className="grid grid-cols-2 gap-2">
+              <Metric label="NTP records" value={fmtInt(canadaStats.data.total)} />
+              <Metric label="Fatalities" value={fmtInt(canadaStats.data.fatalities)} tone="#EF4444" />
+            </div>
+          ) : canadaStats.isError ? <ErrorState message="Canada statistics unavailable." /> : <Loading />}
+          <p className="mt-2 text-[11px] text-tt-muted">Northern Tornadoes Project public feed · 2017 onward.</p>
+          <div className="mt-1 max-h-28 overflow-y-auto">
+            {canadaRecent.data?.items.map((t) => <TornadoListItem key={t.id} t={t} testId={`dashboard-canada-event-${t.id}`} />)}
+          </div>
+          {!records.isLoading && <p className="mt-1 text-[10px] text-tt-muted">{fmtInt(canadaRecords.length)} records loaded from the live NTP feed.</p>}
         </Panel>
         <Panel className="col-span-12 md:col-span-6 lg:col-span-3" title="Tornadoes by rating · F and EF scales grouped">
           <div className="h-44">

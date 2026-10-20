@@ -17,6 +17,7 @@ export const FILTER_KEYS = ["q", "country", "state", "year", "start_date", "end_
 const field = "h-9 w-full rounded-lg border border-tt-border bg-tt-bg2 px-2.5 text-sm text-tt-text placeholder:text-tt-muted focus:border-tt-accent/70 focus:outline-none";
 const CURRENT_YEAR = new Date().getFullYear();
 const JAPAN_PREFECTURES = ["北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県", "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県", "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県", "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県", "鳥取県", "島根県", "岡山県", "広島県", "山口県", "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県"];
+const CANADA_PROVINCES = [["AB", "Alberta"], ["BC", "British Columbia"], ["MB", "Manitoba"], ["NB", "New Brunswick"], ["NL", "Newfoundland and Labrador"], ["NS", "Nova Scotia"], ["NT", "Northwest Territories"], ["NU", "Nunavut"], ["ON", "Ontario"], ["PE", "Prince Edward Island"], ["QC", "Quebec"], ["SK", "Saskatchewan"], ["YT", "Yukon"]];
 
 export function TornadoFilters({ value, onChange, compact = false }: { value: FilterParams; onChange: (v: FilterParams) => void; compact?: boolean }) {
   const [open, setOpen] = useState(!compact);
@@ -70,6 +71,7 @@ export function TornadoFilters({ value, onChange, compact = false }: { value: Fi
               <option value="">All countries</option>
               <option value="United States">United States (SPC)</option>
               <option value="Japan">Japan (JMA)</option>
+              <option value="Canada">Canada (NTP)</option>
             </select>
           </label>
           <label className="space-y-1">
@@ -78,7 +80,9 @@ export function TornadoFilters({ value, onChange, compact = false }: { value: Fi
               <option value="">All regions</option>
               {value.country === "Japan"
                 ? JAPAN_PREFECTURES.map((name) => <option key={name} value={name}>{name}</option>)
-                : US_STATES.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
+                : value.country === "Canada"
+                  ? CANADA_PROVINCES.map(([c, n]) => <option key={c} value={c}>{n}</option>)
+                  : US_STATES.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
             </select>
           </label>
           <label className="space-y-1">

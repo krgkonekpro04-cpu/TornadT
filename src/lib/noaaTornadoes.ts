@@ -1,6 +1,7 @@
 import type { MapResponse, Stats, Tornado, TornadoPage } from "./types";
 import { US_STATES } from "./meteo";
 import { loadRecentNceiTornadoes } from "./recentNceiTornadoes";
+import { loadCanadaNtpTornadoes } from "./canadaNtpTornadoes";
 
 const stateNames = new Map(US_STATES);
 const knownArticleByOm = new Map<string, string>([["1305311703-01", "2013 El Reno tornado"]]);
@@ -80,6 +81,13 @@ export function loadNoaaTornadoes(): Promise<Tornado[]> {
       if (internationalResponse.ok) {
         const international = await internationalResponse.json() as Tornado[];
         records.push(...international);
+      }
+      // Canada's public NTP dashboard provides a no-key live feed from the 2017
+      // project era. Keep the rest of the historical database usable if it is down.
+      try {
+        records.push(...await loadCanadaNtpTornadoes());
+      } catch (error) {
+        console.warn("Could not load Canada's NTP tornado records", error);
       }
       return records;
     })().catch((error) => { datasetPromise = null; throw error; });

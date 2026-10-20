@@ -166,7 +166,7 @@ export default function HistoricalPage() {
 
   return (
     <div className="space-y-4 p-3 sm:p-5">
-      <PageHeader title="Historical Events" subtitle="Explore documented US tornadoes on the map, browse major outbreaks and notable events chronologically, and compare activity across years." />
+      <PageHeader title="Historical Events" subtitle="Explore documented United States, Canadian NTP, and Japan tornado records on the map and photo gallery, browse major US outbreaks, and compare activity across years." />
       <div className="flex flex-wrap gap-1 rounded-xl border border-tt-border bg-tt-card p-1">
         {tabs.map(([k, l]) => (
           <button key={k} data-testid={`historical-tab-${k}`} onClick={() => setTab(k)} className={cn("rounded-lg px-3 py-1.5 text-sm transition-colors duration-150", tab === k ? "bg-tt-accent2 text-white" : "text-tt-muted hover:text-white")}>{l}</button>
