@@ -1,0 +1,55 @@
+name: Windows build and smoke test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check live RainViewer index and tile from Windows
+        shell: pwsh
+        run: |
+          $index = Invoke-RestMethod -Uri "https://api.rainviewer.com/public/weather-maps.json" -TimeoutSec 20
+          if (-not $index.radar.past -or $index.radar.past.Count -lt 1) {
+            throw "RainViewer returned no past radar frames."
+          }
+          $frame = $index.radar.past[-1]
+          $tileUrl = "$($index.host)$($frame.path)/256/2/2/1/2/1_1.png"
+          $tilePath = Join-Path $env:TEMP "tornadt-radar-smoke.png"
+          Invoke-WebRequest -Uri $tileUrl -OutFile $tilePath -TimeoutSec 20
+          if ((Get-Item $tilePath).Length -lt 100) {
+            throw "RainViewer returned an empty radar tile."
+          }
+      - name: Build Windows installer
+        run: npm run package:win
+      - name: Launch packaged app in headless smoke mode
+        shell: pwsh
+        run: |
+          $app = Resolve-Path "release/win-unpacked/TornadT.exe"
+          $process = Start-Process -FilePath $app -ArgumentList @("--headless=new", "--disable-gpu", "--no-sandbox") -PassThru
+          Start-Sleep -Seconds 10
+          if ($process.HasExited) {
+            throw "TornadT exited during startup (code $($process.ExitCode))."
+          }
+          Stop-Process -Id $process.Id -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TornadT-Windows-${{ github.sha }}
+          path: release/TornadT-*-Windows-x64.exe
+          if-no-files-found: error
+          retention-days: 7
