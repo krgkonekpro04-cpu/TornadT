@@ -3,6 +3,12 @@ name: Build and publish TornadT release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to build and upload assets for
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -15,6 +21,8 @@ jobs:
       VITE_POSTHOG_HOST: https://us.i.posthog.com
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -37,12 +45,15 @@ jobs:
       VITE_POSTHOG_HOST: https://us.i.posthog.com
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run package:win
+      - name: Package Windows installer without implicit publishing
+        run: npm run build && npx electron-builder --win nsis --x64 --publish never
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer
@@ -53,6 +64,8 @@ jobs:
   publish:
     needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -62,8 +75,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
+          release_tag="${RELEASE_TAG:-$GITHUB_REF_NAME}"
+          if gh release view "$release_tag" >/dev/null 2>&1; then
+            gh release upload "$release_tag" release-assets/* --clobber
           else
-            gh release create "$GITHUB_REF_NAME" release-assets/* --title "$GITHUB_REF_NAME" --generate-notes
+            gh release create "$release_tag" release-assets/* --title "$release_tag" --generate-notes
           fi
