@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, Area, AreaChart } from "recharts";
 import { ArrowRight, ShieldAlert, Tornado as TornadoIcon } from "lucide-react";
 import { useApp } from "@/lib/appState";
-import { useAlerts, useNoaaTornadoes, useNotable, useSettings, useStats, useTornadoMap, useTornadoPage, useWeather } from "@/lib/hooks";
+import { useAlerts, useNoaaTornadoes, useNotable, useSettings, useStats, useTornadoMap, useTornadoPage, useTornadoMedia, useWeather } from "@/lib/hooks";
 import { EF_COLORS, locationLabel } from "@/lib/meteo";
 import type { LayerState, Tornado } from "@/lib/types";
 import { distanceMi, fmtDate, fmtInt } from "@/lib/units";
@@ -14,17 +14,31 @@ import { CurrentConditions, DailyList, HourlyStrip, SourceLine } from "@/compone
 
 export function TornadoListItem({ t, testId }: { t: Tornado; testId: string }) {
   const { openTornado } = useApp();
-  const [broken, setBroken] = useState(false);
+  const imageRef = useRef<HTMLButtonElement>(null);
+  const [imageSearchVisible, setImageSearchVisible] = useState(false);
+  const [brokenImages, setBrokenImages] = useState<Set<string>>(() => new Set());
+  const { data: media } = useTornadoMedia(t, imageSearchVisible);
+  const image = media?.images.find((item) => !brokenImages.has(item.url));
+  useEffect(() => {
+    const node = imageRef.current;
+    if (!node || imageSearchVisible) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setImageSearchVisible(true); observer.disconnect(); }
+    }, { rootMargin: "150px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [imageSearchVisible]);
   return (
-    <button data-testid={testId} onClick={() => openTornado(t.id)} className="group flex w-full items-center gap-3 rounded-xl border border-transparent p-2 text-left transition-colors duration-150 hover:border-tt-border hover:bg-tt-bg2/60">
+    <button ref={imageRef} data-testid={testId} onClick={() => openTornado(t.id)} className="group flex w-full items-center gap-3 rounded-xl border border-transparent p-2 text-left transition-colors duration-150 hover:border-tt-border hover:bg-tt-bg2/60">
       <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-tt-bg2">
-        {t.thumbnail && !broken ? (
-          <img src={t.thumbnail} alt={`Wikipedia lead image for ${t.wiki_title}`} loading="lazy" onError={() => setBroken(true)} className="h-full w-full object-cover" />
+        {image ? (
+          <img src={image.thumb} alt={image.description ?? image.title} loading="lazy" onError={() => setBrokenImages((previous) => new Set(previous).add(image.url))} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center" style={{ background: `${EF_COLORS[t.mag == null ? "U" : String(t.mag)]}18` }}>
             <TornadoIcon className="size-5" style={{ color: EF_COLORS[t.mag == null ? "U" : String(t.mag)] }} />
           </div>
         )}
+        {!!media?.images.length && <span className="absolute bottom-0 right-0 rounded-tl-md bg-black/80 px-1.5 py-0.5 text-[9px] font-semibold text-white" aria-label={`${media.images.length} tornado photos`}>{media.images.length} photo{media.images.length === 1 ? "" : "s"}</span>}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -33,6 +47,9 @@ export function TornadoListItem({ t, testId }: { t: Tornado; testId: string }) {
         </div>
         <div className="mt-0.5 truncate text-sm text-tt-text group-hover:text-tt-lilac">{t.wiki_title ?? locationLabel(t)}</div>
         <div className="text-[11px] text-tt-muted">{t.fatalities > 0 ? <span className="text-tt-red">{t.fatalities} fatalities</span> : "No fatalities documented"} · {t.injuries} injuries</div>
+        {media && media.images.length > 1 && <div className="mt-2 flex max-w-full gap-1 overflow-x-auto pb-1" aria-label={`${media.images.length - 1} more tornado photos`}>
+          {media.images.filter((item) => item.url !== image?.url && !brokenImages.has(item.url)).map((item) => <img key={item.url} src={item.thumb} alt="" aria-hidden="true" loading="lazy" onError={() => setBrokenImages((previous) => new Set(previous).add(item.url))} className="size-9 shrink-0 rounded-md border border-tt-border object-cover" />)}
+        </div>}
       </div>
     </button>
   );
