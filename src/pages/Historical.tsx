@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend as RLegend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ExternalLink, MapPinned, Tornado as TornadoIcon, Wind } from "lucide-react";
 import { useApp } from "@/lib/appState";
@@ -16,12 +16,12 @@ const field = "h-9 rounded-lg border border-tt-border bg-tt-bg2 px-2.5 text-sm t
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: CURRENT_YEAR - 1949 }, (_, i) => CURRENT_YEAR - i);
 
-function GalleryCard({ t, onEnlarge }: { t: Tornado; onEnlarge: (i: WikiImage) => void }) {
+function GalleryCard({ t, onEnlarge, onImageCount }: { t: Tornado; onEnlarge: (i: WikiImage) => void; onImageCount: (id: string, count: number) => void }) {
   const ref = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false);
   const { data, isLoading, isError, refetch } = useTornadoMedia(t, visible);
   const { openTornado } = useApp();
-  const img = data?.images[0];
+  const images = data?.images ?? [];
   useEffect(() => {
     const node = ref.current;
     if (!node || visible) return;
@@ -31,18 +31,26 @@ function GalleryCard({ t, onEnlarge }: { t: Tornado; onEnlarge: (i: WikiImage) =
     observer.observe(node);
     return () => observer.disconnect();
   }, [visible]);
-  if (isLoading) return <div className="aspect-[4/3] animate-pulse rounded-xl bg-tt-card" />;
-  if (!img) return <div ref={ref} className="break-inside-avoid rounded-xl border border-tt-border bg-tt-card p-3 text-xs text-tt-muted">
+  useEffect(() => {
+    if (data) onImageCount(t.id, images.length);
+  }, [data, images.length, onImageCount, t.id]);
+  if (isLoading) return <div ref={ref} className="aspect-[4/3] animate-pulse rounded-xl bg-tt-card" />;
+  if (!images.length) return <div ref={ref} className="break-inside-avoid rounded-xl border border-tt-border bg-tt-card p-3 text-xs text-tt-muted">
     {isError ? <><span>Photo sources could not be reached for {t.year} {locationLabel(t)}.</span> <button className="ml-1 text-tt-lilac hover:underline" onClick={() => refetch()}>Retry</button></> : `No verified tornado photograph found for ${t.year} ${locationLabel(t)}.`}
   </div>;
   return (
     <figure ref={ref} className="break-inside-avoid rounded-xl border border-tt-border bg-tt-card p-2.5">
-      <SmartImage img={img} alt={img.description ?? img.title} onClick={() => onEnlarge(img)} testId={`gallery-img-${t.id}`} />
-      <figcaption className="mt-2">
+      <div className={cn("grid gap-2", images.length > 1 && "sm:grid-cols-2")}>
+        {images.map((img, index) => <div key={img.url}>
+          <SmartImage fixedRatio img={img} alt={img.description ?? img.title} onClick={() => onEnlarge(img)} testId={`gallery-img-${t.id}${index ? `-${index}` : ""}`} />
+          <Attribution img={img} />
+        </div>)}
+      </div>
+      <figcaption className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <button onClick={() => openTornado(t.id)} className="flex items-center gap-2 text-left text-sm font-medium hover:text-tt-lilac">
           <RatingBadge rating={t.rating} mag={t.mag} /> {data.article?.title ?? `${t.year} ${data.place || t.state_name} tornado`}
         </button>
-        <Attribution img={img} />
+        <span className="text-[11px] text-tt-muted">{fmtInt(images.length)} verified photo{images.length === 1 ? "" : "s"}</span>
       </figcaption>
     </figure>
   );
@@ -117,6 +125,12 @@ export default function HistoricalPage() {
   const [galleryRating, setGalleryRating] = useState("all");
   const [gallerySet, setGallerySet] = useState<"top100" | "all">("all");
   const [galleryLimit, setGalleryLimit] = useState(100);
+  const [galleryImageCounts, setGalleryImageCounts] = useState<Record<string, number>>({});
+  const reportGalleryImages = useCallback((id: string, count: number) => {
+    setGalleryImageCounts((previous) => previous[id] === count ? previous : { ...previous, [id]: count });
+  }, []);
+  const galleryPhotosFound = Object.values(galleryImageCounts).reduce((sum, count) => sum + count, 0);
+  const galleryRecordsChecked = Object.keys(galleryImageCounts).length;
   const map = useTornadoMap(filters, tab === "map");
   const outbreaks = useOutbreaks();
   const notable = useNotable();
@@ -255,23 +269,23 @@ export default function HistoricalPage() {
 
       {tab === "gallery" && (
         <div>
-          <p className="mb-3 text-sm text-tt-muted">Photo searches are available for all NOAA tornado records. Images load as you scroll through the gallery.</p>
+          <p className="mb-3 text-sm text-tt-muted">Photo searches cover the loaded historical records. Each card shows every verified tornado photograph found; images load as you scroll.</p>
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            {([["top100", "Top 100 notable"], ["all", "All NOAA records"]] as const).map(([value, label]) => <button key={value} onClick={() => setGallerySet(value)} className={cn("rounded-lg border px-3 py-1.5 text-sm", gallerySet === value ? "border-tt-accent bg-tt-accent2 text-white" : "border-tt-border text-tt-muted hover:text-white")}>{label}</button>)}
-            {gallerySet === "top100" ? <span className="ml-auto text-xs text-tt-muted">{notable.isLoading ? "Ranking notable tornadoes…" : `${fmtInt(top100Tornadoes.length)} tornadoes · photos load as you scroll`}</span> : <>
+            {([["top100", "Top 100 notable"], ["all", "All historical records"]] as const).map(([value, label]) => <button key={value} onClick={() => { setGallerySet(value); setGalleryImageCounts({}); } } className={cn("rounded-lg border px-3 py-1.5 text-sm", gallerySet === value ? "border-tt-accent bg-tt-accent2 text-white" : "border-tt-border text-tt-muted hover:text-white")}>{label}</button>)}
+            {gallerySet === "top100" ? <span className="ml-auto text-xs text-tt-muted">{notable.isLoading ? "Ranking notable tornadoes…" : `${fmtInt(top100Tornadoes.length)} tornadoes · ${fmtInt(galleryPhotosFound)} verified photos found in ${fmtInt(galleryRecordsChecked)} checked records`}</span> : <>
               <span className="text-xs text-tt-muted">Rating:</span>
               {[['all', 'All'], ['0', 'EF0'], ['1', 'EF1'], ['2', 'EF2'], ['3', 'EF3'], ['4', 'EF4'], ['5', 'EF5'], ['U', 'Unknown']].map(([value, label]) => (
-                <button key={value} onClick={() => { setGalleryRating(value); setGalleryLimit(50); }} className={cn("rounded-lg border px-2.5 py-1 text-xs", galleryRating === value ? "border-tt-accent bg-tt-accent2 text-white" : "border-tt-border text-tt-muted hover:text-white")}>{label}</button>
+                <button key={value} onClick={() => { setGalleryRating(value); setGalleryLimit(50); setGalleryImageCounts({}); }} className={cn("rounded-lg border px-2.5 py-1 text-xs", galleryRating === value ? "border-tt-accent bg-tt-accent2 text-white" : "border-tt-border text-tt-muted hover:text-white")}>{label}</button>
               ))}
-              <span className="ml-auto text-xs text-tt-muted">{allTornadoes.isLoading ? "Loading NOAA records…" : `${fmtInt(Math.min(galleryLimit, galleryTornadoes.length))} of ${fmtInt(galleryTornadoes.length)} records · photos load as you scroll`}</span>
+              <span className="ml-auto text-xs text-tt-muted">{allTornadoes.isLoading ? "Loading historical records…" : `${fmtInt(Math.min(galleryLimit, galleryTornadoes.length))} of ${fmtInt(galleryTornadoes.length)} records · ${fmtInt(galleryPhotosFound)} photos found in ${fmtInt(galleryRecordsChecked)} checked records`}</span>
             </>}
           </div>
           {gallerySet === "top100" ? <div data-testid="famous-tornado-gallery" className="columns-1 gap-3 space-y-3 sm:columns-2 xl:columns-3">
-            {top100Tornadoes.map((t) => <GalleryCard key={t.id} t={t} onEnlarge={setLightbox} />)}
+            {top100Tornadoes.map((t) => <GalleryCard key={t.id} t={t} onEnlarge={setLightbox} onImageCount={reportGalleryImages} />)}
           </div> : <>
-            {allTornadoes.isError && <ErrorState message="Could not load NOAA tornado records." />}
+            {allTornadoes.isError && <ErrorState message="Could not load historical tornado records." />}
             <div data-testid="historical-gallery" className="columns-1 gap-3 space-y-3 sm:columns-2 xl:columns-3">
-              {galleryTornadoes.slice(0, galleryLimit).map((t) => <GalleryCard key={t.id} t={t} onEnlarge={setLightbox} />)}
+              {galleryTornadoes.slice(0, galleryLimit).map((t) => <GalleryCard key={t.id} t={t} onEnlarge={setLightbox} onImageCount={reportGalleryImages} />)}
             </div>
             {galleryLimit < galleryTornadoes.length && <button onClick={() => setGalleryLimit((n) => n + 50)} className="mt-4 rounded-lg border border-tt-border bg-tt-card px-4 py-2 text-sm text-tt-text hover:border-tt-accent">Load next 50 tornadoes</button>}
           </>}
