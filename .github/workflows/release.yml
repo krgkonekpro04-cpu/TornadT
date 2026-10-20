@@ -9,12 +9,18 @@ on:
         description: Existing release tag to build and upload assets for
         required: true
         type: string
+      artifact_run_id:
+        description: Existing successful workflow run ID to publish its installers without rebuilding
+        required: false
+        type: string
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   build-macos:
+    if: ${{ !inputs.artifact_run_id }}
     runs-on: macos-latest
     env:
       VITE_POSTHOG_PROJECT_TOKEN: ${{ secrets.POSTHOG_PROJECT_TOKEN }}
@@ -39,6 +45,7 @@ jobs:
           retention-days: 1
 
   build-windows:
+    if: ${{ !inputs.artifact_run_id }}
     runs-on: windows-latest
     env:
       VITE_POSTHOG_PROJECT_TOKEN: ${{ secrets.POSTHOG_PROJECT_TOKEN }}
@@ -63,21 +70,29 @@ jobs:
 
   publish:
     needs: [build-macos, build-windows]
+    if: ${{ always() && (inputs.artifact_run_id || (needs.build-macos.result == 'success' && needs.build-windows.result == 'success')) }}
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ inputs.release_tag }}
+      ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
       - uses: actions/download-artifact@v4
         with:
           path: release-assets
           merge-multiple: true
+          run-id: ${{ inputs.artifact_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           release_tag="${RELEASE_TAG:-$GITHUB_REF_NAME}"
-          if gh release view "$release_tag" >/dev/null 2>&1; then
-            gh release upload "$release_tag" release-assets/* --clobber
+          if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$release_tag" release-assets/* --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create "$release_tag" release-assets/* --title "$release_tag" --generate-notes
+            gh release create "$release_tag" release-assets/* --title "$release_tag" --generate-notes --repo "$GITHUB_REPOSITORY"
           fi
