@@ -1,6 +1,6 @@
 {
   "name": "tornadt",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "TornadT — live radar and historical tornado explorer",
   "repository": {
     "type": "git",
