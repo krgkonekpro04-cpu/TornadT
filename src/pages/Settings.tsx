@@ -6,6 +6,7 @@ import type { Settings } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { LocationSearch } from "@/components/common/LocationSearch";
 import { PageHeader, Panel } from "@/components/common/ui";
+import { isUsageAnalyticsConfigured, isUsageAnalyticsEnabled, setUsageAnalyticsEnabled } from "@/lib/usageAnalytics";
 
 function Choice<K extends keyof Settings>({ k, label, options, value, onChange }: { k: K; label: string; options: [Settings[K], string][]; value: Settings; onChange: (s: Settings) => void }) {
   return (
@@ -41,6 +42,7 @@ export default function SettingsPage() {
   const saved = useSettings();
   const save = useSaveSettings();
   const [s, setS] = useState<Settings>(saved);
+  const [usageAnalyticsEnabled, setUsageAnalyticsEnabledState] = useState(isUsageAnalyticsEnabled);
   useEffect(() => setS(saved), [saved]);
   const dirty = JSON.stringify(s) !== JSON.stringify(saved);
 
@@ -70,6 +72,29 @@ export default function SettingsPage() {
           <p className="mb-2 text-sm">Current: <span data-testid="settings-home-name" className="text-tt-lilac">{s.home_name}</span> <span className="tt-mono text-xs text-tt-muted">({s.home_lat.toFixed(2)}, {s.home_lon.toFixed(2)})</span></p>
           <LocationSearch testId="settings-home-search" onSelect={(p) => setS({ ...s, home_name: p.name, home_lat: p.lat, home_lon: p.lon })} />
           <p className="mt-2 text-[11px] text-tt-muted">Used as the default location for the dashboard and weather page.</p>
+        </Panel>
+        <Panel className="col-span-12" title="Anonymous usage analytics">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="max-w-3xl space-y-1">
+              <p className="text-sm">Help the TornadT developer understand how many people use the app.</p>
+              <p className="text-xs leading-relaxed text-tt-muted">
+                When enabled, TornadT sends an anonymous app-open event and an active-use ping every five minutes to PostHog. It does not send your name, email, location, searches, or tornado records. A random ID is stored on this device so active devices can be counted. Usage data is visible only in the developer’s private PostHog account. You can turn this off at any time.
+              </p>
+              {!isUsageAnalyticsConfigured() && <p className="text-xs text-tt-orange">Analytics is not configured in this build, so no usage events are sent.</p>}
+            </div>
+            <label className="flex shrink-0 cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={usageAnalyticsEnabled}
+                onChange={(event) => {
+                  setUsageAnalyticsEnabledState(event.target.checked);
+                  setUsageAnalyticsEnabled(event.target.checked);
+                }}
+                className="size-4 accent-tt-accent"
+              />
+              Share anonymous usage
+            </label>
+          </div>
         </Panel>
         <Panel className="col-span-12" title="Data sources & limitations">
           <ul className="space-y-2 text-sm">

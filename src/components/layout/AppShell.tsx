@@ -15,6 +15,7 @@ import { Logo, LogoMark } from "./Logo";
 import { CompareDialog } from "@/components/tornado/CompareDialog";
 import { placeName } from "@/components/common/LocationSearch";
 import { BugReportDialog } from "@/components/common/BugReportDialog";
+import { initializeUsageAnalytics } from "@/lib/usageAnalytics";
 
 const TornadoDetailPanel = lazy(() => import("@/components/tornado/TornadoDetailPanel").then((m) => ({ default: m.TornadoDetailPanel })));
 
@@ -172,6 +173,8 @@ export default function AppShell() {
   const [introVisible, setIntroVisible] = useState(true);
   const [introLeaving, setIntroLeaving] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
+
+  useEffect(() => initializeUsageAnalytics(), []);
 
   useEffect(() => {
     const leave = window.setTimeout(() => setIntroLeaving(true), 950);

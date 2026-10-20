@@ -54,6 +54,12 @@ After installation, open **TornadT** from the Start menu or desktop shortcut. Th
 
 The macOS and Windows desktop apps check GitHub Releases for a newer stable version each time they start. If one is available, TornadT offers to open the official download page. Updates are installed by downloading and running the new installer; the app does not silently replace itself.
 
+## Anonymous usage counts (developer)
+
+TornadT can report anonymous app-open and active-use events to a private PostHog project. Users must turn on **Settings → Anonymous usage analytics** before any event is sent. Events contain a random per-install ID and operating system platform only; they exclude names, email addresses, location, searches, and tornado data. Active pings are sent every five minutes while the app is open. The project dashboard remains private to its owner.
+
+To enable collection in your release builds, create a PostHog project, copy its **Project API key** (the public/write-only `phc_…` project token), and set it in your build environment as `VITE_POSTHOG_PROJECT_TOKEN`. Never put a personal or secret API key in the app. For EU PostHog projects, also set `VITE_POSTHOG_HOST=https://eu.i.posthog.com`; the default host is PostHog US. Start TornadT from source with these variables set, or set them before running the packaging commands so the token is included in that build. See [PostHog project keys](https://posthog.com/docs/settings/projects) and [PostHog's API overview](https://posthog.com/docs/api).
+
 ## Run from source
 
 Install Node.js 22 or newer, then run:
